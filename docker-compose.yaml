@@ -1,8 +1,20 @@
 version: "3"
 services:
-  short-line:
+  app:
     build: ./
     ports:
       - '5656:5656'
     volumes:
       - ./:/app
+
+  db:
+    container_name: db
+    image: postgres
+    environment:
+      POSTGRES_USER: USER
+      POSTGRES_PASSWORD: QWERTY
+    volumes:
+      - ./etc/sample_db:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
