@@ -1,0 +1,3 @@
+CREATE USER user;
+CREATE DATABASE short_line;
+GRANT ALL PRIVILEGES ON DATABASE short_line TO user;
