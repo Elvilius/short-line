@@ -1,4 +1,4 @@
-module github.com/dirk94/go-docker
+module github.com/Elvilius/short-line
 
 go 1.13
 
