@@ -6,12 +6,14 @@ services:
       - '5656:5656'
     volumes:
       - ./:/app
+    environment: 
+    - PSQL_URL=postgresql://short_line:QWERTY@db/short_line
 
   db:
     container_name: db
     image: postgres
     environment:
-      POSTGRES_USER: user
+      POSTGRES_USER: short_line
       POSTGRES_PASSWORD: QWERTY
     volumes:
       - ./etc/sample_db:/docker-entrypoint-initdb.d:ro
