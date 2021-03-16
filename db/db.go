@@ -8,7 +8,7 @@ import (
 )
 
 type Db struct {
-	conn *pgx.Conn
+	Conn *pgx.Conn
 }
 
 type UrlModel struct {
@@ -18,7 +18,7 @@ type UrlModel struct {
 
 func (db *Db) CreateUrl(url string) int {
 	var id int
-	err := db.conn.QueryRow(context.Background(), "INSERT INTO urls (id, full_address_name, short_key) VALUES ($1, $2, $3) RETURNING id", "1", url, "eee").Scan(&id)
+	err := db.Conn.QueryRow(context.Background(), "INSERT INTO urls (full_address_name, short_key) VALUES ($1, $2) RETURNING id", url, "null").Scan(&id)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
@@ -26,10 +26,21 @@ func (db *Db) CreateUrl(url string) int {
 	return id
 }
 
-func (db *Db) GetUrlByFullAddres(address string) UrlModel {
+func (db *Db) GetUrlByFullAddres(address string) (UrlModel, error) {
 	url := UrlModel{}
-	query := `SELECT * FROM urls WHERE full_address_name = $1;`
-	row := db.conn.QueryRow(context.Background(), query, address)
+	query := `SELECT id, full_address_name FROM urls WHERE full_address_name = $1;`
+	row := db.Conn.QueryRow(context.Background(), query, address)
+	err := row.Scan(&url.Id, &url.Full_address_name)
+	if err != nil {
+		return url, err
+	}
+	return url, nil
+}
+
+func (db *Db) GetUrlById(id string) UrlModel {
+	url := UrlModel{}
+	query := `SELECT id, full_address_name FROM urls WHERE id = $1;`
+	row := db.Conn.QueryRow(context.Background(), query, id)
 	err := row.Scan(&url.Id, &url.Full_address_name)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
@@ -45,8 +56,6 @@ func Connect(psqUrl string) Db {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
 	}
-	defer conn.Close(context.Background())
-
-	db.conn = conn
+	db.Conn = conn
 	return db
 }
