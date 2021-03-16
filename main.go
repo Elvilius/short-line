@@ -1,37 +1,51 @@
 package main
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/jackc/pgx/v4"
 	"net/http"
 	"os"
+	"github.com/Elvilius/short-line/db"
+	"github.com/gorilla/mux"
 )
 
+var repository db.Db
+
 func main() {
-	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-		os.Exit(1)
-	}
-	defer conn.Close(context.Background())
-
-	var greeting string
-	err = conn.QueryRow(context.Background(), "select 'Hello world' ").Scan(&greeting)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Println(greeting)
-
-	route := mux.NewRouter()
-
-	route.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Welcome to this life-changing API.")
-	})
-
+	repository = db.Connect(os.Getenv("PSQL_URL"))
 	fmt.Println("Server listening!")
-	http.ListenAndServe(":5656", route)
+	http.ListenAndServe(":5656", initRoutes())
+}
+
+func CreateShortUrl(w http.ResponseWriter, r *http.Request) {
+	type UrlDto struct {
+		Url string `json:"url"`
+	}
+	var urlDto UrlDto
+
+	err := json.NewDecoder(r.Body).Decode(&urlDto)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	shortUrl := urlDto.Url
+	json.NewEncoder(w).Encode(map[string]string{"data": shortUrl})
+}
+
+func Redirect(w http.ResponseWriter, r *http.Request) {
+	repository.GetUrlByFullAddres("asdasdasd")
+	http.Redirect(w, r, "https://github.com/Elvilius", http.StatusMovedPermanently)
+}
+
+func Index(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Welcome to this life-changing API.")
+}
+
+func initRoutes() *mux.Router {
+	route := mux.NewRouter()
+	route.HandleFunc("/", Index)
+	route.HandleFunc("/{key}", Redirect)
+	route.HandleFunc("/create", CreateShortUrl).Methods("POST")
+	return route
 }
