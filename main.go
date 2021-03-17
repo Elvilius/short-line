@@ -16,7 +16,7 @@ type Handler struct {
 }
 
 type UrlResponse struct {
-	data string
+	Data string `json:"data"`
 }
 
 type UrlRequest struct {
@@ -30,8 +30,8 @@ func main() {
 	defer repository.Conn.Close(context.Background())
 
 	route := mux.NewRouter()
-	route.HandleFunc("/", IndexHandler)
-	route.HandleFunc("/create", handler.CreateShortUrlHandler).Methods("POST")
+	route.HandleFunc("/", IndexHandler).Methods("GET")
+	route.HandleFunc("/", handler.CreateShortUrlHandler).Methods("POST")
 	route.HandleFunc("/{key}", handler.RedirectHandler)
 
 	fmt.Println("Server listening!")
@@ -49,12 +49,12 @@ func (h *Handler) CreateShortUrlHandler(w http.ResponseWriter, r *http.Request) 
 
 	if existUrl == nil {
 		id, _ = h.repository.CreateUrl(urlRequest.Url)
+
 	} else {
 		id = existUrl.Id
 	}
-
 	shortUrl := createShortUrl(id)
-	json.NewEncoder(w).Encode(UrlResponse{data: shortUrl})
+	json.NewEncoder(w).Encode(UrlResponse{Data: shortUrl})
 
 }
 
@@ -63,7 +63,7 @@ func (h *Handler) RedirectHandler(w http.ResponseWriter, r *http.Request) {
 	id := params["key"]
 	url, err := h.repository.GetUrlById(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "bad request", http.StatusBadRequest)
 	}
 	http.Redirect(w, r, url.Url, http.StatusMovedPermanently)
 }

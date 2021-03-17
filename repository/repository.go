@@ -28,7 +28,7 @@ func (db *UrlRepository) CreateUrl(url string) (int, error) {
 func (db *UrlRepository) GetUrlByFullAddres(address string) (*UrlModel, error) {
 	var url UrlModel
 	url = UrlModel{}
-	query := `SELECT id, url FROM urls WHERE full_address_name = $1;`
+	query := `SELECT id, url FROM urls WHERE url = $1;`
 	row := db.Conn.QueryRow(context.Background(), query, address)
 	err := row.Scan(&url.Id, &url.Url)
 	if err != nil {
