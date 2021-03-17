@@ -4,64 +4,74 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Elvilius/short-line/db"
+	"github.com/Elvilius/short-line/repository"
 	"github.com/gorilla/mux"
 	"net/http"
 	"os"
 	"strconv"
 )
 
-var repository db.Db
-
-func main() {
-	repository = db.Connect(os.Getenv("PSQL_URL"))
-	defer repository.Conn.Close(context.Background())
-	fmt.Println("Server listening!")
-	http.ListenAndServe(":5656", initRoutes())
+type Handler struct {
+	repository *db.UrlRepository
 }
 
-func CreateShortUrl(w http.ResponseWriter, r *http.Request) {
+type UrlResponse struct {
+	data string
+}
+
+type UrlRequest struct {
+	Url string `json:"url"`
+}
+
+func main() {
+	repository := db.Connect(os.Getenv("PSQL_URL"))
+	handler := Handler{repository: &repository}
+	
+	defer repository.Conn.Close(context.Background())
+
+	route := mux.NewRouter()
+	route.HandleFunc("/", IndexHandler)
+	route.HandleFunc("/create", handler.CreateShortUrlHandler).Methods("POST")
+	route.HandleFunc("/{key}", handler.RedirectHandler)
+
+	fmt.Println("Server listening!")
+	http.ListenAndServe(":5656", route)
+}
+
+func (h *Handler) CreateShortUrlHandler(w http.ResponseWriter, r *http.Request) {
 	var id int
+	 urlRequest:= UrlRequest{}
 
-	type UrlDto struct {
-		Url string `json:"url"`
-	}
-	var urlDto UrlDto
-
-	err := json.NewDecoder(r.Body).Decode(&urlDto)
-
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&urlRequest); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
 	}
-	existUrl, err := repository.GetUrlByFullAddres(urlDto.Url)
+	existUrl, _ := h.repository.GetUrlByFullAddres(urlRequest.Url)
 
-	if err != nil {
-		id = repository.CreateUrl(urlDto.Url)
+	if existUrl == nil {
+		id, _ = h.repository.CreateUrl(urlRequest.Url)
 	} else {
 		id = existUrl.Id
 	}
 
-	shortUrl := os.Getenv("HOST_URL") + "/" + strconv.Itoa(id)	
-	json.NewEncoder(w).Encode(map[string]string{"data": shortUrl})
+	shortUrl := createShortUrl(id)
+	json.NewEncoder(w).Encode(UrlResponse{data: shortUrl})
 
 }
 
-func Redirect(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) RedirectHandler(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["key"]
-	url := repository.GetUrlById(id)
-	http.Redirect(w, r, url.Full_address_name, http.StatusMovedPermanently)
+	url, err := h.repository.GetUrlById(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	http.Redirect(w, r, url.Url, http.StatusMovedPermanently)
 }
 
-func Index(w http.ResponseWriter, r *http.Request) {
+func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Welcome to this life-changing API.")
 }
 
-func initRoutes() *mux.Router {
-	route := mux.NewRouter()
-	route.HandleFunc("/", Index)
-	route.HandleFunc("/create", CreateShortUrl).Methods("POST")
-	route.HandleFunc("/{key}", Redirect)
-	return route
+func createShortUrl(id int) string {
+	return os.Getenv("HOST_URL") + "/" + strconv.Itoa(id)
 }
