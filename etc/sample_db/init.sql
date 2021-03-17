@@ -7,6 +7,6 @@ GRANT ALL PRIVILEGES ON DATABASE short_line TO short_line;
 
 CREATE TABLE public.urls (
     id  SERIAL PRIMARY KEY,
-    full_address_name TEXT,
+    url TEXT,
     short_key TEXT NULL
 );
